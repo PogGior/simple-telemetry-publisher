@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "simple-telemetry-publisher"
+    static_configs:
+      - targets: ["simple-telemetry.telemetry.svc.cluster.local:9004"] 
+

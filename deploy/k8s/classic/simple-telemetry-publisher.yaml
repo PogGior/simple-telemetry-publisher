@@ -1,0 +1,13 @@
+log:
+  disable: false
+  interval: 15s
+  extra-fields:
+    foo: bar
+metric:
+  disable: false
+  prometheus:
+    port: 9004
+    interval: 10s
+trace:
+  disable: true
+  endpoint: "http://jaeger.jaeger.svc.cluster.local:4318/api/traces"

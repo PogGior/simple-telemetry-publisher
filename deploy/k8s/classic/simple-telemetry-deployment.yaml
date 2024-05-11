@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-telemetry-publisher
+  namespace: telemetry
+  labels:
+    app: simple-telemetry-publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-telemetry-publisher
+  template:
+    metadata:
+      labels:
+        app: simple-telemetry-publisher
+    spec:
+      containers:
+      - name: simple-telemetry-publisher
+        image: simple-telemetry-publisher:0.0.1
+        command: ["/app/simple-telemetry-publisher"]
+        args:
+          - "--config"
+          - "/config/simple-telemetry-publisher.yaml"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: simple-telemetry

@@ -1,21 +1,22 @@
-package otel
+package metric
 
 import (
 	"log"
 
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"context"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
-	"go.opentelemetry.io/otel/metric"
-	sdk_metric "go.opentelemetry.io/otel/sdk/metric"
 	"math/rand"
 	"time"
+
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 type Otel struct {}
 
-func (otel *Otel) Init() {
+func (otel *Otel) InitMetric() {
 
 	res, err := resource.Merge(
 		resource.Default(),
@@ -29,15 +30,16 @@ func (otel *Otel) Init() {
 		log.Fatalf("failed to merge resources: %v", err)
 	}
 
+
 	metricExporter, err := stdoutmetric.New()
 	if err != nil {
 		panic(err)
 	}
 
-	meterProvider := sdk_metric.NewMeterProvider(
-		sdk_metric.WithResource(res),
-		sdk_metric.WithReader(sdk_metric.NewPeriodicReader(metricExporter,
-			sdk_metric.WithInterval(15*time.Second))),
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
+			sdkmetric.WithInterval(15*time.Second))),
 	)
 
 	meter := meterProvider.Meter("example-meter")

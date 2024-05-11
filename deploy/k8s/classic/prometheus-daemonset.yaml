@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prometheus
+  namespace: prometheus
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.44.0
+        args:
+            - "--config.file=/etc/prometheus/prometheus.yaml"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: metrics
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: metrics
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        ports:
+        - name: metrics
+          containerPort: 9090
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus/
+        imagePullPolicy: IfNotPresent
+        resources: {}
+      volumes: 
+      - name: prometheus-config
+        configMap:
+          optional: false
+          defaultMode: 0777
+          name: prometheus-config
