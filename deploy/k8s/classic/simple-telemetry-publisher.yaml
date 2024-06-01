@@ -1,6 +1,7 @@
 log:
   disable: false
   interval: 15s
+  json-format: true
   extra-fields:
     foo: bar
 metric:
@@ -9,5 +10,9 @@ metric:
     port: 9004
     interval: 10s
 trace:
-  disable: true
-  endpoint: "http://jaeger.jaeger.svc.cluster.local:4318/api/traces"
+  disable: false
+  endpoint: "jaeger.jaeger.svc.cluster.local:4318"
+  service-name: simple-publisher
+  tracer-name: jaeger
+  interval: 10s
+graceful-shutdown: 5s

@@ -3,14 +3,16 @@ package model
 import (
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	LogConfig    LogConfig    `mapstructure:"log"`
-	MetricConfig MetricConfig `mapstructure:"metric"`
-	TraceConfig  TraceConfig  `mapstructure:"trace"`
+	LogConfig        LogConfig     `mapstructure:"log"`
+	MetricConfig     MetricConfig  `mapstructure:"metric"`
+	TraceConfig      TraceConfig   `mapstructure:"trace"`
+	GracefulShutdown time.Duration `mapstructure:"graceful-shutdown"`
 }
 
 type LogConfig struct {
@@ -28,11 +30,11 @@ type MetricConfig struct {
 }
 
 type TraceConfig struct {
-	Disable bool `mapstructure:"disable"`
-	Endpoint string `mapstructure:"endpoint"`
-	ServiceName string `mapstructure:"service-name"`
-	TracerName string `mapstructure:"tracer-name"`
-	Interval time.Duration `mapstructure:"interval"`
+	Disable     bool          `mapstructure:"disable"`
+	Endpoint    string        `mapstructure:"endpoint"`
+	ServiceName string        `mapstructure:"service-name"`
+	TracerName  string        `mapstructure:"tracer-name"`
+	Interval    time.Duration `mapstructure:"interval"`
 }
 
 type PrometheusConfig struct {
@@ -42,8 +44,11 @@ type PrometheusConfig struct {
 }
 
 type OtelMetricConfig struct {
-	Disable  bool   `mapstructure:"disable"`
-	Endpoint string `mapstructure:"endpoint"`
+	Disable           bool          `mapstructure:"disable"`
+	Endpoint          string        `mapstructure:"endpoint"`
+	ServiceName       string        `mapstructure:"service-name"`
+	MeterProviderName string        `mapstructure:"meter-provider-name"`
+	Interval          time.Duration `mapstructure:"interval"`
 }
 
 func LoadConfig(flagSet *pflag.FlagSet) (Config, error) {
@@ -58,16 +63,17 @@ func LoadConfig(flagSet *pflag.FlagSet) (Config, error) {
 
 	viper.SetDefault("trace.service-name", "simple-telemetry-publisher")
 	viper.SetDefault("trace.tracer-name", "simple-telemetry-publisher")
-	viper.SetDefault("trace.endpoint", "http://localhost:4318/v1/traces")
+	viper.SetDefault("trace.endpoint", "0.0.0.0:4318")
 
-	if err := viper.ReadInConfig(); err != nil {
-		return Config{}, err
+	err := viper.ReadInConfig()
+	if err != nil {
+		return Config{}, errors.WithStack(err)
 	}
 
-	if err := viper.Unmarshal(&config); err != nil {
-		return Config{}, err
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		return Config{}, errors.WithStack(err)
 	}
 
 	return config, nil
 }
-

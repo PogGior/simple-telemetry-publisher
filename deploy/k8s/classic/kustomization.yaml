@@ -8,6 +8,8 @@ resources:
 - jaeger-namespace.yaml
 - jaeger-service.yaml
 - jaeger-statefulset.yaml
+- fluent-bit-daemonset.yaml
+- fluent-bit-namespace.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -21,3 +23,8 @@ configMapGenerator:
   namespace: telemetry
   files:
   - simple-telemetry-publisher.yaml
+- name: fluentbit-config
+  namespace: fluentbit
+  files:
+  - fluent-bit.conf
+  - fluent-bit-parsers.conf

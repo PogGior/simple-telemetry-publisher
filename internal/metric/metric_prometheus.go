@@ -13,48 +13,51 @@ import (
 )
 
 type PrometheusMetrics struct {
-	model.PrometheusConfig
+	GracefulShutdown time.Duration
+	Config model.PrometheusConfig
 }
 
 var (
 	counterMetric = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "my_counter",
-			Help: "This is my counter",
+			Name: "counter",
+			Help: "Example of a Counter",
 		},
 	)
 
 	gaugeMetric = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "random_number",
-			Help: "Random number from 0 to 10",
+			Name: "gauge",
+			Help: "Example of a Gauge",
 		},
 	)
 )
 
-func (prometheusMetrics PrometheusMetrics) Start(ctx context.Context) error {
+func (p PrometheusMetrics) Start(ctx context.Context) error {
 
 	r := prometheus.NewRegistry()
 	r.MustRegister(counterMetric, gaugeMetric)
 
-	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
-	address := ":" + strconv.Itoa(int(prometheusMetrics.Port))
-	srv := &http.Server{Addr: address}
+	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{
+		Registry: r,
+	}))
+	address := ":" + strconv.Itoa(int(p.Config.Port))
+	srv := &http.Server{Addr: address} 
 	go srv.ListenAndServe()
-	go prometheusMetrics.updateMetrics(ctx)
-
-	<-ctx.Done()
-	srv.Shutdown(ctx)
+	go p.produceMetrics(ctx, srv)
 
 	return nil
 }
 
-func (prometheusMetrics PrometheusMetrics) updateMetrics(ctx context.Context) {
-	ticker := time.NewTicker(prometheusMetrics.Interval)
+func (p PrometheusMetrics) produceMetrics(ctx context.Context, srv *http.Server) {
+	ticker := time.NewTicker(p.Config.Interval)
 loop:
 	for {
 		select {
 		case <-ctx.Done():
+			timeoutContext, cancel := context.WithTimeout(context.Background(), p.GracefulShutdown)
+			defer cancel()
+			srv.Shutdown(timeoutContext)
 			break loop
 		case <-ticker.C:
 			counterMetric.Inc()

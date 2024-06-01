@@ -18,14 +18,14 @@ func Init(config model.Config) ([]model.TelemetryProvider,error) {
 	}
 	if !config.MetricConfig.Disable {
 		if !config.MetricConfig.PrometheusConfig.Disable {
-			telemetryProviders = append(telemetryProviders, metric.PrometheusMetrics{PrometheusConfig: config.MetricConfig.PrometheusConfig})
+			telemetryProviders = append(telemetryProviders, metric.PrometheusMetrics{GracefulShutdown: config.GracefulShutdown, Config: config.MetricConfig.PrometheusConfig})
 		}
-		//if !config.MetricConfig.OtelMetricConfig.Disable {
-		//	telemetryProviders = append(telemetryProviders, otel.OtelMetrics{OtelConfig: config.MetricConfig.OtelMetricConfig})
-		//}
+		if !config.MetricConfig.OtelMetricConfig.Disable {
+			telemetryProviders = append(telemetryProviders, metric.OtelMetrics{GracefulShutdown: config.GracefulShutdown, Config: config.MetricConfig.OtelMetricConfig})
+		}
 	}
 	if !config.TraceConfig.Disable {
-		telemetryProviders = append(telemetryProviders, trace.OtelTrace{Config: config.TraceConfig})
+		telemetryProviders = append(telemetryProviders, trace.OtelTrace{GracefulShutdown: config.GracefulShutdown, Config: config.TraceConfig})
 	}
 
 	return telemetryProviders, nil

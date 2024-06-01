@@ -44,7 +44,7 @@ func (l LogProvider)Start(ctx context.Context) error {
 					logger.Warn("warn message")
 					logger.Error("error message")
 				case <-ctx.Done():
-					logger.Info("Stopping log")
+					logger.Info("Graceful shutdown of simple-telemetry-publisher")
 					ticker.Stop()
 					break loop
 				}

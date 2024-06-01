@@ -2,6 +2,7 @@ package trace
 
 import (
 	"simple-telemetry-publisher/internal/model"
+	"time"
 
 	"context"
 
@@ -9,11 +10,12 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 )
 
 type OtelTrace struct {
-	Config model.TraceConfig
+	GracefulShutdown time.Duration
+	Config         model.TraceConfig
 }
 
 func (o OtelTrace) Start(ctx context.Context) error {
@@ -31,9 +33,10 @@ func (o OtelTrace) Start(ctx context.Context) error {
 
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(o.Config.Endpoint),
+		otlptracehttp.WithInsecure(),
 	}
 
-	traceExporter, err := otlptracehttp.New(ctx,opts...)
+	traceExporter, err := otlptracehttp.New(ctx, opts...)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -43,12 +46,27 @@ func (o OtelTrace) Start(ctx context.Context) error {
 		sdktrace.WithResource(res),
 	)
 
-	tracer := traceProvider.Tracer(o.Config.TracerName)
+	traceProvider.Shutdown(ctx)
 
-	_, span := tracer.Start(ctx, "foo")
-	span.End()
+	go o.produceTrace(ctx, traceProvider)
 
 	return nil
 }
 
-
+func (o OtelTrace) produceTrace(ctx context.Context, traceProvider *sdktrace.TracerProvider) {
+	tracer := traceProvider.Tracer(o.Config.TracerName)
+	ticker := time.NewTicker(o.Config.Interval)
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			timeoutContext, cancel := context.WithTimeout(context.Background(), o.GracefulShutdown)
+			defer cancel()
+			traceProvider.Shutdown(timeoutContext)
+			break loop
+		case <-ticker.C:
+			_, span := tracer.Start(ctx, "foo")
+			span.End()
+		}
+	}
+}

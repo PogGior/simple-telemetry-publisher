@@ -1,6 +1,7 @@
 log:
   disable: false
   interval: 15s
+  json-format: false
   extra-fields:
     foo: bar
 metric:
@@ -10,3 +11,8 @@ metric:
     interval: 10s
 trace:
   disable: false
+  interval: 10s
+  endpoint: "0.0.0.0:4318"
+  service-name: simple-publisher
+  tracer-name: jaeger
+graceful-shutdown: 5s

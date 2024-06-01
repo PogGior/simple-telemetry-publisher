@@ -1,54 +1,61 @@
 package metric
 
 import (
-	"log"
+	"simple-telemetry-publisher/internal/model"
 
 	"context"
 	"math/rand"
 	"time"
 
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
-type Otel struct {}
+type OtelMetrics struct {
+	GracefulShutdown time.Duration
+	Config model.OtelMetricConfig
+}
 
-func (otel *Otel) InitMetric() {
+func (o OtelMetrics) Start(ctx context.Context) error {
 
 	res, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("ExampleService"),
+			semconv.ServiceName(o.Config.ServiceName),
 		),
 	)
-
 	if err != nil {
-		log.Fatalf("failed to merge resources: %v", err)
+		return errors.WithStack(err)
 	}
 
+	opts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithInsecure(),
+		otlpmetrichttp.WithEndpoint(o.Config.Endpoint),
+	}
 
-	metricExporter, err := stdoutmetric.New()
+	metricExporter, err := otlpmetrichttp.New(ctx, opts...)
 	if err != nil {
-		panic(err)
+		errors.WithStack(err)
 	}
 
 	meterProvider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithResource(res),
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
-			sdkmetric.WithInterval(15*time.Second))),
+			sdkmetric.WithInterval(o.Config.Interval))),
 	)
 
-	meter := meterProvider.Meter("example-meter")
+	meter := meterProvider.Meter(o.Config.MeterProviderName)
 
 	counter, err := meter.Int64Counter("counter",
 		metric.WithDescription("Example of a Counter"),
 	)
 	if err != nil {
-		panic(err)
+		return errors.WithStack(err)
 	}
 
 	_, err = meter.Float64ObservableGauge("gauge",
@@ -59,16 +66,26 @@ func (otel *Otel) InitMetric() {
 		}),
 	)
 	if err != nil {
-		panic(err)
+		return errors.WithStack(err)
 	}
 
-	go updateMetrics(counter)
+	go o.produceMetrics(ctx, meterProvider, counter)
 
+	return nil
 }
 
-func updateMetrics(counter metric.Int64Counter) {
-	for range time.Tick(15 * time.Second) {
-		ctx := context.Background()
-		counter.Add(ctx, 1)
+func (o OtelMetrics) produceMetrics(ctx context.Context, meterProvider *sdkmetric.MeterProvider, counter metric.Int64Counter) {
+	ticker := time.NewTicker(o.Config.Interval)
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			contextTimeout, cancel := context.WithTimeout(context.Background(), o.GracefulShutdown)
+			defer cancel()
+			meterProvider.Shutdown(contextTimeout)
+			break loop
+		case <-ticker.C:
+			counter.Add(ctx, 1)
+		}
 	}
 }
