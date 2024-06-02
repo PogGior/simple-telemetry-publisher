@@ -1,0 +1,4 @@
+exporters:
+  jaeger:
+    endpoint: "jaeger:14250"  # replace with the service name and port of your Jaeger instance
+    insecure: true

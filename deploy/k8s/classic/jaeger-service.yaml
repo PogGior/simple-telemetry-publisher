@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: jaeger
+  labels:
+    app: jaeger
+spec:
+  ports:
+  - port: 16686
+    name: ui
+  - port: 4318
+    name: collector
+  - port: 4317
+    name: grpc-collector
+  selector:
+    app: jaeger
+  clusterIP: None
